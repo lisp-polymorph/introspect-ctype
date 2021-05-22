@@ -85,10 +85,14 @@
         (t 'cl:*)))
 
 (defun conjoin-dims (&rest dims)
-  (reduce #'conjoin/2 dims))
+  (if (second dims)
+      (reduce #'conjoin/2 dims)
+      (first dims)))
 
 (defun disjoin-dims (&rest dims)
-  (reduce #'disjoin/2 dims))
+  (if (second dims)
+      (reduce #'disjoin/2 dims)
+      (first dims)))
 
 
 
