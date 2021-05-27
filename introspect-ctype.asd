@@ -6,6 +6,7 @@
     :license  "MIT"
     :version "0.1"
     :serial t
-    :depends-on (#:ctype)
+    :depends-on (#:ctype #:cl-form-types #:alexandria)
     :components ((:file "package")
+                 (:file "containers")
                  (:file "introspect-ctype")))
