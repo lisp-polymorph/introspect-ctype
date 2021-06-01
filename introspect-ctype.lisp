@@ -138,7 +138,7 @@ is."
 
 ;;; Macros
 
-(defmacro with-type-info ((whole (&optional typename parameters) &optional env default) form &body body)
+(defmacro with-type-info ((whole (&optional (typename (gensym "TYPENAME")) (parameters (gensym "PARAMETERS"))) &optional env default) form &body body)
   "Determine the type of a form in a given environment
 
 The type of the form is determined from the environment and
@@ -170,9 +170,10 @@ them."
                     (ctype:specifier-ctype
                      (normalize-type (%form-type ,form ,env)) ,env))))
 
-       (destructuring-bind (,(or typename (gensym "TYPENAME"))
-                            &rest ,(or parameters (gensym "PARAMETERS")))
+       (destructuring-bind (,typename &rest ,parameters)
            (ensure-list ',whole)
+
+         (declare (ignorable ,typename ,parameters))
 
          ,@(if default
                `((let ((,default (default ,whole ,env)))
