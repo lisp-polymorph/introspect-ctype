@@ -171,7 +171,7 @@ them."
                      (normalize-type (%form-type ,form ,env)) ,env))))
 
        (destructuring-bind (,typename &rest ,parameters)
-           (ensure-list ',whole)
+           (ensure-list ,whole)
 
          (declare (ignorable ,typename ,parameters))
 
