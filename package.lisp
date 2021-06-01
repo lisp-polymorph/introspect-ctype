@@ -14,4 +14,7 @@
            #:with-array-info
            #:container-element-ctype
            #:container-dims
-           #:constant-array-dimensions-p))
+           #:constant-array-dimensions-p
+
+           #:ind
+           #:maybe))
