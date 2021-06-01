@@ -101,6 +101,40 @@
                                                             (default (first rest))
                                                             0))))))))))
 
+;;; Function Type Normalization
+
+(defun normalize-type (type)
+  "Normalize function types.
+
+If TYPE is a FUNCTION type specifier, * specifiers occurring within
+the lambda-list are replaced with T. Otherwise TYPE is returned as
+is."
+
+  (flet ((replace-* (arg)
+           (cond
+             ((eq arg '*) t)
+
+             ((and (listp arg)
+                   (= (length arg) 2)
+                   (eq (second arg) '*))
+
+              (list (first arg) t))
+
+             (t arg))))
+
+    (destructuring-case (ensure-list type)
+      ((function &optional (params '*) (result '*))
+       (typecase params
+         (list
+          `(function
+            ,(mapcar #'replace-* params)
+            ,result))
+
+         (otherwise
+          type)))
+
+      ((otherwise (&whole type))
+       type))))
 
 ;;; Macros
 
@@ -132,7 +166,10 @@ with the WHOLE, TYPENAME, PARAMETERS and DEFAULT variables visible to
 them."
 
   (once-only (form env)
-    `(let ((,whole (ctype:unparse (ctype:specifier-ctype (%form-type ,form ,env) ,env))))
+    `(let ((,whole (ctype:unparse
+                    (ctype:specifier-ctype
+                     (normalize-type (%form-type ,form ,env)) ,env))))
+
        (destructuring-bind (,(or typename (gensym "TYPENAME"))
                             &rest ,(or parameters (gensym "PARAMETERS")))
            (ensure-list ',whole)

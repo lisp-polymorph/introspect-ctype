@@ -7,7 +7,8 @@
   (:import-from #:alexandria
                 #:with-gensyms
                 #:once-only
-                #:ensure-list)
+                #:ensure-list
+                #:destructuring-case)
 
   (:export #:with-type-info
            #:with-array-info
