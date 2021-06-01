@@ -102,12 +102,41 @@
                                                             0))))))))))
 
 
-;;; Utilities
+;;; Macros
 
-(defmacro with-type-info ((form whole (typename &rest parameters) &optional default env) &body body)
-  `(once-only (form env)
-     (let ((,whole (ctype:unparse (ctype:specifier-ctype (%form-type ,form ,env) ,env))))
-       (destructuring-bind (,typename ,@parameters) (ensure-list ',whole)
+(defmacro with-type-info ((whole (&optional typename parameters) &optional env default) form &body body)
+  "Determine the type of a form in a given environment
+
+The type of the form is determined from the environment and
+normalized.
+
+WHOLE is a variable which will receive the entire type.
+
+TYPENAME is a variable which will receive the name of the type. If the
+type of the form is a list, this variable receives the CAR of the
+list, otherwise it is bound to the symbol naming the type.
+
+PARAMETERS is a variable which will receive the parameters of the type
+of FORM. If the type of the form is a list, this variable receive the
+CDR of the list, otherwise it is bound to NIL.
+
+ENV is the environment in which the form is found.
+
+DEFAULT is an optional variable, which, if given, receives a default
+value of the same type as the form.
+
+FORM is the form of which to determine the type.
+
+BODY is a list of forms which are evaluated, in an implicit PROGN,
+with the WHOLE, TYPENAME, PARAMETERS and DEFAULT variables visible to
+them."
+
+  (once-only (form env)
+    `(let ((,whole (ctype:unparse (ctype:specifier-ctype (%form-type ,form ,env) ,env))))
+       (destructuring-bind (,(or typename (gensym "TYPENAME"))
+                            &rest ,(or parameters (gensym "PARAMETERS")))
+           (ensure-list ',whole)
+
          ,@(if default
                `((let ((,default (default ,whole ,env)))
                    ,@body))
