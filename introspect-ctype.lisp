@@ -110,31 +110,37 @@ If TYPE is a FUNCTION type specifier, * specifiers occurring within
 the lambda-list are replaced with T. Otherwise TYPE is returned as
 is."
 
-  (flet ((replace-* (arg)
-           (cond
-             ((eq arg '*) t)
+  (destructuring-case (ensure-list type)
+    ((function &optional (params '*) (result '*))
+     (typecase params
+       (list
+        `(function
+          ,(loop
+              with in-key = nil
+              for arg in params
+              collect
+                (cond
+                  ((and in-key
+                        (listp arg)
+                        (= (length arg) 2)
+                        (eq (second arg) '*))
 
-             ((and (listp arg)
-                   (= (length arg) 2)
-                   (eq (second arg) '*))
+                   (list (first arg) t))
 
-              (list (first arg) t))
+                  ((eql arg '*) t))
 
-             (t arg))))
+              do
+                (when (eq arg '&key)
+                  (setf in-key t)))
 
-    (destructuring-case (ensure-list type)
-      ((function &optional (params '*) (result '*))
-       (typecase params
-         (list
-          `(function
-            ,(mapcar #'replace-* params)
-            ,result))
+          ,result))
 
-         (otherwise
-          type)))
+       (otherwise
+        type)))
 
-      ((otherwise (&whole type))
-       type))))
+    ((otherwise &rest args)
+     (declare (ignore args))
+     type)))
 
 ;;; Macros
 
