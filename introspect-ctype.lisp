@@ -116,20 +116,20 @@ is."
        (list
         `(function
           ,(loop
-              with in-key = nil
-              for arg in params
-              collect
-                (cond
-                  ((and in-key
-                        (listp arg)
-                        (= (length arg) 2)
-                        (eq (second arg) '*))
+             :with in-key := nil
+             :for arg :in params
+             :collect
+             (cond
+               ((and in-key
+                     (listp arg)
+                     (= (length arg) 2)
+                     (eq (second arg) '*))
 
-                   (list (first arg) t))
+                (list (first arg) t))
 
-                  ((eql arg '*) t))
+               ((eql arg '*) t))
 
-              do
+             :do
                 (when (eq arg '&key)
                   (setf in-key t)))
 
@@ -203,7 +203,7 @@ them."
 
   (and (constantp dim env)
        (every
-	(lambda (x)
-	  (and (constantp x)
-	       (not (eql 'cl:* x))))
-	(ensure-list dim))))
+        (lambda (x)
+          (and (constantp x)
+               (not (eql 'cl:* x))))
+        (ensure-list dim))))
