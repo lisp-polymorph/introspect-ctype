@@ -176,6 +176,8 @@ them."
                     (ctype:specifier-ctype
                      (normalize-type (%form-type ,form ,env)) ,env))))
 
+       (declare (ignorable ,whole))
+
        (destructuring-bind (,typename &rest ,parameters)
            (ensure-list ,whole)
 
