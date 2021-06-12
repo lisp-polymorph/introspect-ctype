@@ -9,4 +9,5 @@
     :depends-on (#:ctype #:cl-form-types #:alexandria)
     :components ((:file "package")
                  (:file "containers")
+                 (:file "type-options")
                  (:file "introspect-ctype")))

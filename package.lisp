@@ -8,9 +8,11 @@
                 #:with-gensyms
                 #:once-only
                 #:ensure-list
-                #:destructuring-case)
+                #:destructuring-case
+                #:length=)
 
   (:export #:with-type-info
+           #:when-types
            #:with-array-info
            #:container-element-ctype
            #:container-dims

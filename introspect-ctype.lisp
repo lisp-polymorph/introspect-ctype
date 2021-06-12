@@ -144,7 +144,7 @@ is."
 
 ;;; Macros
 
-(defmacro with-type-info ((whole (&optional (typename (gensym "TYPENAME")) (parameters (gensym "PARAMETERS"))) &optional env default) form &body body)
+(defmacro with-type-info ((whole (&optional (typename (gensym "TYPENAME")) &rest options-lambda-list) &optional env default) form &body body)
   "Determine the type of a form in a given environment
 
 The type of the form is determined from the environment and
@@ -152,13 +152,13 @@ normalized.
 
 WHOLE is a variable which will receive the entire type.
 
-TYPENAME is a variable which will receive the name of the type. If the
-type of the form is a list, this variable receives the CAR of the
-list, otherwise it is bound to the symbol naming the type.
+TYPENAME is a variable which will receive a symbol that identifies the
+type class, as returned by by CTYPE-TYPENAME.
 
-PARAMETERS is a variable which will receive the parameters of the type
-of FORM. If the type of the form is a list, this variable receive the
-CDR of the list, otherwise it is bound to NIL.
+OPTIONS-LAMBDA-LIST is a destructuring lambda-list, for destructuring
+the type's parameters, as returned by CTYPE-OPTIONS. An implicit &REST
+parameter is added if the lambda-list does not have one already. Do
+not use &AUX variables.
 
 ENV is the environment in which the form is found.
 
@@ -168,35 +168,65 @@ value of the same type as the form.
 FORM is the form of which to determine the type.
 
 BODY is a list of forms which are evaluated, in an implicit PROGN,
-with the WHOLE, TYPENAME, PARAMETERS and DEFAULT variables visible to
-them."
+with the bindings variables WHOLE, TYPENAME, DEFAULT and the variables
+in OPTIONS-LAMBDA-LIST visible."
 
-  (once-only (form env)
-    `(let ((,whole (ctype:unparse
-                    (ctype:specifier-ctype
-                     (normalize-type (%form-type ,form ,env)) ,env))))
+  (with-gensyms (ctype)
+    (once-only (form env)
+      (flet ((destructure-type-options (lambda-list body)
+               (if lambda-list
+                   (with-gensyms (rest)
+                     (let ((has-rest-p (member '&rest lambda-list)))
+                       `((destructuring-bind
+                               (,@lambda-list
+                                ,@(unless has-rest-p
+                                    `(&rest ,rest)))
+                             (ctype-options ,typename ,ctype)
+                           ,@(unless has-rest-p `((declare (ignorable ,rest))))
+                           ,@body))))
+                   body)))
 
-       (declare (ignorable ,whole))
+        `(let* ((,ctype (ctype:specifier-ctype
+                         (normalize-type (%form-type ,form ,env)) ,env))
+                (,whole (ctype:unparse ,ctype)))
 
-       (destructuring-bind (,typename &rest ,parameters)
-           (ensure-list ,whole)
+           (declare (ignorable ,whole))
 
-         (declare (ignorable ,typename ,parameters))
+           (let ((,typename (ctype-typename ,ctype)))
+             (declare (ignorable ,typename))
 
-         ,@(if default
-               `((let ((,default (default ,whole ,env)))
-                   ,@body))
+             ,@(destructure-type-options
+                options-lambda-list
+                (if default
+                    `((let ((,default (default ,whole ,env)))
+                        ,@body))
 
-               body)))))
+                    body))))))))
 
-(defmacro with-array-info ((elt dim) array-form env &body body)
-  (let ((init-form-type (gensym))
-        (carray (gensym)))
-    `(let ((,init-form-type (%form-type ,array-form ,env)))
-       (let* ((,carray (ctype:specifier-ctype ,init-form-type))
-              (,elt (ctype:unparse (container-element-ctype ,carray)))
-              (,dim (container-dims ,carray)))
-         ,@body))))
+(defmacro when-types ((&rest types) else-form &body body)
+  "Evaluate the forms in BODY only if the types match a given typenamme symbol.
+
+TYPES is a list of types to compare. Each element is of the form (TYPE
+EXPECTED) where TYPE (evaluated) is the form producing the actual type
+and EXPECTED (not evaluated) is the expected type specifier. The types
+are considered to match if every TYPE is EQUAL to the corresponding
+EXPECTED type. This is best suited for comparing the value of the
+TYPENAME in WITH-TYPE-INFO.
+
+ELSE-FORM is the form which is evaluated (and returned) if the types
+do not match.
+
+BODY is the list of forms which are evaluated, in an implicit PROGN,
+if the types match. The value returned by the last form is returned
+from the WHEN-TYPES form."
+
+  (flet ((make-type-check (type)
+           (destructuring-bind (form exp) type
+             `(equal ,form ',exp))))
+
+    `(if (not (and ,@(mapcar #'make-type-check types)))
+         ,else-form
+         (progn ,@body))))
 
 (defun constant-array-dimensions-p (dim env)
   "Return true if all array dimensions in DIM are a compile-time constant."
