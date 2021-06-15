@@ -17,6 +17,7 @@
            #:container-element-ctype
            #:container-dims
            #:constant-array-dimensions-p
+           #:constant-form-value
            #:default
            #:ind
            #:maybe))

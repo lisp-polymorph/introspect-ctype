@@ -228,6 +228,8 @@ from the WHEN-TYPES form."
          ,else-form
          (progn ,@body))))
 
+;;; Utility functions
+
 (defun constant-array-dimensions-p (dim env)
   "Return true if all array dimensions in DIM are a compile-time constant."
 
@@ -237,3 +239,34 @@ from the WHEN-TYPES form."
           (and (constantp x)
                (not (eql 'cl:* x))))
         (ensure-list dim))))
+
+(defun constant-form-value (form env)
+  "Return the value of a form if it is a constant.
+
+FORM is a form.
+
+ENV is the environment in which FORM is found.
+
+Returns two values:
+
+  1. The constant value if the form is constant in the
+     environment. Otherwise is FORM itself.
+
+  2. True if the form is constant, otherwise is NIL."
+
+  (if (constantp form env)
+      (let ((type (cl-form-types:nth-form-type form env 0 t t)))
+        (cond
+          ((and (listp type)
+                (length= type 2)
+                (eq (first type) 'eql))
+
+           (values (second type) t))
+
+          ((eq type 'null)
+           (values nil t))
+
+          (t
+           (values form nil))))
+
+      (values form nil)))
