@@ -19,5 +19,6 @@
            #:constant-array-dimensions-p
            #:constant-form-value
            #:default
+           #:%form-type
            #:ind
            #:maybe))
