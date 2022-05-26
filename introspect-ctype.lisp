@@ -14,6 +14,13 @@
   (let ((cl-form-types:*handle-sb-lvars* t))
     (cl-form-types:nth-form-type form env 0 nil t)))
 
+(defun %list-form-types (form &optional env)
+  (let* ((cl-form-types:*handle-sb-lvars* t))
+    (loop :for i :from 0
+          :for type := (cl-form-types:nth-form-type form env i nil t)
+          :while type
+          :collect type)))
+
 (defun %dimensions-comp (dimensions)
     (cond ((eql '* dimensions) 0)
           ((listp dimensions) (mapcar (lambda (x) (if (eql '* x) 0 x)) dimensions))
@@ -99,9 +106,8 @@
                                       :element-type ',(or (first rest) t)
                                       :initial-element ,(if (first rest)
                                                             (default (first rest))
-                                                            0))))))))))
+                                                            0))))))))));;; Function Type Normalization
 
-;;; Function Type Normalization
 
 (defun normalize-type (type)
   "Normalize function types.
@@ -130,8 +136,8 @@ is."
                ((eql arg '*) t))
 
              :do
-                (when (eq arg '&key)
-                  (setf in-key t)))
+             (when (eq arg '&key)
+               (setf in-key t)))
 
           ,result))
 
@@ -186,8 +192,8 @@ in OPTIONS-LAMBDA-LIST visible."
                            ,@body))))
                    body)))
 
-        `(let* ((,ctype (ctype:specifier-ctype
-                         (normalize-type (%form-type ,form ,env)) ,env))
+        `(let* ((,ctype (ctype:specifier-ctype ;; FIXME Broken:when function is being passed in
+                         (normalize-type (%form-type ,form ,env)) ,env)) ;; it returns values type
                 (,whole (ctype:unparse ,ctype)))
 
            (declare (ignorable ,whole))

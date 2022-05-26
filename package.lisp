@@ -20,5 +20,6 @@
            #:constant-form-value
            #:default
            #:%form-type
+           #:%list-form-types
            #:ind
            #:maybe))
