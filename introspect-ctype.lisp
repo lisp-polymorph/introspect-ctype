@@ -26,6 +26,154 @@
           ((listp dimensions) (mapcar (lambda (x) (if (eql '* x) 0 x)) dimensions))
           (t dimensions)))
 
+(defgeneric default-form (type &optional environment))
+
+(macrolet ((gen (types form)
+             `(progn
+                ,@(loop :for type :in types
+                        :collect `(defmethod default-form ((type (eql ',type)) &optional environment)
+                                    (declare (ignorable environment))
+                                    ,form)))))
+  (gen (bit fixnum integer rational) 0)
+  (gen (float double-float single-float long-float real) 0.0)
+  (gen (number complex) #c(0 0))
+  (gen (character base-char) #\Nul)
+  (gen (standard-char) #\a)
+  (gen (symbol t) t)
+  (gen (keyword) :t)
+  (gen (hash-table) '(make-hash-table))
+  (gen (list boolean atom null) nil)
+  (gen (pathname) #P"")
+  (gen (vector) '(make-array 0 :adjustable t))
+  (gen (bit-vector) '(make-array 0 :element-type 'bit :adjustable t :fill-pointer 0))
+  (gen (simple-bit-vector) '(make-array 0 :element-type 'bit))
+  (gen (string) '(make-array 0 :element-type 'character :adjustable t :initial-element #\Nul :fill-pointer 0))
+  (gen (simple-array) (make-array 0)) ;;Maybe it should error here, since array dimension is not specified?
+   ;;What happens with just array? Or just sequence? I guess nothing
+  (gen (simple-string) '(make-array 0 :element-type 'character :initial-element #\Nul))
+  (gen (simple-base-string) '(make-array 0 :element-type 'base-char :initial-element #\Nul)))
+
+
+(defgeneric default-form-for-parametric-type (typename type &optional env))
+
+
+(defmethod default-form-for-parametric-type ((typename (eql 'mod)) type &optional env)
+  (declare (ignorable typename type env))
+  0)
+
+(defmethod default-form-for-parametric-type ((typename (eql 'unsigned-byte)) type &optional env)
+  (declare (ignorable typename type env))
+  0)
+
+(defmethod default-form-for-parametric-type ((typename (eql 'signed-byte)) type &optional env)
+  (declare (ignorable typename type env))
+  0)
+
+(defmethod default-form-for-parametric-type ((typename (eql 'integer)) type &optional env)
+  (declare (ignorable typename env))
+  (or (second type) 0))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'eql)) type &optional env)
+  (declare (ignorable typename env))
+  (second type))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'member)) type &optional env)
+  (declare (ignorable typename env))
+  (second type))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'rational)) type &optional env)
+  (declare (ignorable typename env))
+  (second type))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'real)) type &optional env)
+  (declare (ignorable typename env))
+  (second type))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'float)) type &optional env)
+  (declare (ignorable typename env))
+  (second type))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'complex)) type &optional env)
+  (declare (ignorable typename))
+  `(complex ,(default (second type) env) ,(default (second type) env)))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'cons)) type &optional env)
+  (declare (ignorable typename))
+  `(cons ,(default (second type) env) ,(default (third type) env)))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'vector)) type &optional env)
+  (declare (ignorable typename))
+  (let ((rest (rest type)))
+    `(make-array ',(if (= 2 (length rest))
+                       (%dimensions-comp (second rest))
+                       0)
+      :adjustable t
+      :fill-pointer 0
+      :element-type ',(or (first rest) t)
+      :initial-element ,(if (first rest)
+                            (default (first rest) env)
+                            0))))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'bit-vector)) type &optional env)
+  (declare (ignorable typename env))
+  (let ((rest (rest type)))
+    `(make-array ,(or (first rest) 0) :element-type 'bit :adjustable t :fill-pointer 0)))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'string)) type &optional env)
+  (declare (ignorable typename env))
+  (let ((rest (rest type)))
+    `(make-array ',(if (= 2 (length rest))
+                       (%dimensions-comp (second rest))
+                       0)
+      :element-type 'character
+      :adjustable t
+      :fill-pointer 0
+      :initial-element #\Nul)))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'simple-array)) type &optional env)
+  (declare (ignorable typename))
+  (let ((rest (rest type)))
+    `(make-array ',(if (= 2 (length rest))
+                       (%dimensions-comp (second rest))
+                       0)
+      :element-type ',(or (first rest) t)
+      :initial-element ,(if (first rest)
+                            (default (first rest) env)
+                            0))))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'simple-string)) type &optional env)
+  (declare (ignorable typename env))
+  (let ((rest (rest type)))
+    `(make-array ',(if (= 2 (length rest))
+                       (%dimensions-comp (second rest))
+                       0)
+      :element-type 'character
+      :initial-element #\Nul)))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'simple-base-string)) type &optional env)
+  (declare (ignorable typename env))
+  (let ((rest (rest type)))
+    `(make-array ',(if (= 2 (length rest))
+                       (%dimensions-comp (second rest))
+                       0)
+      :element-type 'base-char
+      :initial-element #\Nul)))
+
+(defmethod default-form-for-parametric-type ((typename (eql 'array)) type &optional env)
+  (declare (ignorable typename))
+  (let ((rest (rest type)))
+    (unless rest
+      (error 'simple-error :format-control "Cannot create a default array with unknown dimensions"))
+   `(make-array ',(if (= 2 (length rest))
+                      (%dimensions-comp (second rest))
+                      0)
+     :element-type ',(or (first rest) t)
+     :adjustable t
+     :initial-element ,(if (first rest)
+                           (default (first rest) env)
+                           0))))
+
+
 (defun default (type &optional environment)
   "Return a reasonable default object for a given type."
   (multiple-value-bind (item knownp) (gethash type *default-impl*)
@@ -34,80 +182,8 @@
         (progn
           (setf type (sb-ext:typexpand type environment))
           (if (symbolp type)
-              (case type
-                ((bit fixnum integer rational) 0)
-                ((float double-float single-float long-float real) 0.0)
-                ((number complex) #c(0 0))
-                ((character base-char) #\Nul)
-                (standard-char #\a)
-                ((symbol t) t)
-                (keyword :t)
-                (hash-table `(make-hash-table))
-                ((list boolean atom null) nil)
-                (pathname #P"")
-                (function '(lambda (&rest args)
-                            (declare (ignore args)
-                             (optimize (speed 3) (safety 0) (debug 0) (space 0) (compilation-speed 0)))))
-                (vector '(make-array 0 :adjustable t))
-                (bit-vector '(make-array 0 :element-type 'bit :adjustable t))
-                (string '(make-array 0 :element-type 'character :adjustable t :initial-element #\Nul))
-                (simple-array (make-array 0)) ;;Maybe it should error here, since array dimension is nto specified?
-                ;;What happens with just array? Or just sequence? I guess nothing
-                (simple-string '(make-array 0 :element-type 'character :initial-element #\Nul))
-                (simple-base-string '(make-array 0 :element-type 'base-char :initial-element #\Nul))
-                (otherwise
-                 (cond ((subtypep type 'structure-object environment)
-                        (list (intern (concatenate 'string "MAKE-" (string type)))))
-                       ((subtypep type 'standard-object environment)
-                        `(make-instance ,type)))))
-              (destructuring-bind (main . rest) type
-                (case main
-                  ((mod unsigned-byte singned-byte) 0)
-                  ((integer eql member rational real float) (first rest))
-                  (complex `(complex ,(default (first rest)) ,(default (first rest))))
-                  (cons `(cons ,(default (first rest)) ,(default (first rest))))
-                  (or (default (first rest)))
-                  (vector `(make-array ',(if (= 2 (length rest))
-                                             (%dimensions-comp (second rest))
-                                             0)
-                                       :adjustable t
-                                       :element-type ',(or (first rest) t)
-                                       :initial-element ,(if (first rest)
-                                                             (default (first rest))
-                                                             0)))
-                  (bit-vector `(make-array ,(or (first rest) 0) :element-type 'bit :adjustable t))
-                  (string `(make-array ',(if (= 2 (length rest))
-                                             (%dimensions-comp (second rest))
-                                             0)
-                                       :element-type 'character
-                                       :adjustable t
-                                       :initial-element #\Nul))
-                  (simple-array `(make-array ',(if (= 2 (length rest))
-                                                   (%dimensions-comp (second rest))
-                                                   0)
-                                             :element-type ',(or (first rest) t)
-                                             :initial-element ,(if (first rest)
-                                                                   (default (first rest))
-                                                                   0)))
-                  (simple-string `(make-array ',(if (= 2 (length rest))
-                                                    (%dimensions-comp (second rest))
-                                                    0)
-                                              :element-type 'character
-                                              :initial-element #\Nul))
-                  (simple-base-string `(make-array ',(if (= 2 (length rest))
-                                                         (%dimensions-comp (second rest))
-                                                         0)
-                                                   :element-type 'base-char
-                                                   :initial-element #\Nul))
-
-                  (array `(make-array ',(if (= 2 (length rest))
-                                            (%dimensions-comp (second rest))
-                                            0)
-                                      :element-type ',(or (first rest) t)
-                                      :initial-element ,(if (first rest)
-                                                            (default (first rest))
-                                                            0))))))))));;; Function Type Normalization
-
+              (default-form type environment)
+              (default-form-for-parametric-type (first type) type environment))))))
 
 (defun normalize-type (type)
   "Normalize function types.
